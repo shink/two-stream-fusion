@@ -1,4 +1,11 @@
 .idea
 __pycache__
+.pytest_cache
 log
 *.log
+
+### datasets ###
+dataset/ucf-101/UCF101
+
+### generated frames ###
+dataset/ucf-101/frames
