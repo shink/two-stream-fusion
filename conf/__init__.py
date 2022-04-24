@@ -8,6 +8,7 @@
 @description: 
 """
 
-import os
+from .logger import Logger, log, log_file_path
+from . import param
 
-print(r'Log directory: %s' % os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'log'))
+__all__ = ['Logger', 'log', 'log_file_path', 'param']

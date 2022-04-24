@@ -9,77 +9,57 @@
 """
 
 import os
-import logging.config
-
-# 日志输出格式
-standard_format = '[%(levelname)-5s] %(asctime)s [%(threadName)s] [%(name)s] %(filename)s:%(lineno)d - %(message)s'
-simple_format = '[%(levelname)-5s] %(asctime)s [%(name)s] %(filename)s - %(message)s'
-
-# log文件存放目录、文件名
-logfile_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'log')
-logfile_name = 'two-stream-fusion.log'
-
-if not os.path.isdir(logfile_dir):
-    os.mkdir(logfile_dir)
-
-logfile_path = os.path.join(logfile_dir, logfile_name)
-
-# logging 配置
-LOGGING_DIC = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'standard': {
-            'format': standard_format
-        },
-        'simple': {
-            'format': simple_format
-        },
-    },
-    'filters': {},
-    'handlers': {
-        # 打印到终端的日志
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',  # 打印到屏幕
-            'formatter': 'simple'
-        },
-        # 打印到文件的日志，收集 info 及以上的日志
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',  # 保存到文件
-            'formatter': 'standard',
-            'filename': logfile_path,  # 日志文件
-            'maxBytes': 5 * 1024 * 1024,  # 日志大小 5M
-            'backupCount': 5,
-            'encoding': 'utf-8',  # 日志文件的编码
-        },
-    },
-    'loggers': {
-        # logging.getLogger(__name__)拿到的logger配置
-        '': {
-            'handlers': ['console', 'file'],  # 这里把上面定义的两个 handler 都加上
-            'level': 'DEBUG',
-            'propagate': True,  # 向上（更高level的logger）传递
-        },
-    },
-}
-
-logging.config.dictConfig(LOGGING_DIC)
-logger = logging.getLogger(__name__)  # 生成一个 logger 实例
+import logging
+from utils.util import read_yaml
 
 
-def debug(message):
-    logger.debug(message)
+class Logger(logging.Logger):
+    def __init__(self,
+                 name='root',
+                 level=logging.DEBUG,
+                 console_level=logging.DEBUG,
+                 console_formatter=None,
+                 file_level=logging.INFO,
+                 file_path=None,
+                 file_encoding=None,
+                 file_formatter=None):
+        super().__init__(name)
+        self.setLevel(level)
+
+        # if file exists, write log to it
+        if file_path:
+            file_handler = logging.FileHandler(file_path, encoding=file_encoding)
+            file_handler.setLevel(file_level)
+            file_handler.setFormatter(logging.Formatter(file_formatter))
+            self.addHandler(file_handler)
+
+        # print log to console
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(console_level)
+        stream_handler.setFormatter(logging.Formatter(console_formatter))
+        self.addHandler(stream_handler)
 
 
-def info(message):
-    logger.info(message)
+log_file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'log')
+log_file_name = 'two-stream-fusion.log'
+log_file_path = os.path.join(log_file_dir, log_file_name)
 
+if not os.path.exists(log_file_dir):
+    os.mkdir(log_file_dir)
 
-def warn(message):
-    logger.warn(message)
+config_file_dir = os.path.dirname(os.path.abspath(__file__))
+config_file_name = "logger.yml"
+config_file_path = os.path.join(config_file_dir, config_file_name)
 
-
-def error(message):
-    logger.error(message)
+config = read_yaml(config_file_path)
+logger_config = config["logger"]
+log = Logger(
+    name=logger_config["name"],
+    level=logger_config["level"],
+    console_level=logger_config["console"]["level"],
+    console_formatter=logger_config["console"]["formatter"],
+    file_level=logger_config["file"]["level"],
+    file_path=log_file_path,
+    file_encoding=logger_config["file"]["encoding"],
+    file_formatter=logger_config["file"]["formatter"]
+)
