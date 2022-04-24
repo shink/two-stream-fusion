@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from conf import logger
+from conf import log
 
 
 class UcfCrimeDataset(Dataset):
@@ -35,15 +35,15 @@ class UcfCrimeDataset(Dataset):
         """
 
         if not self.check_integrity():
-            logger.error('Dataset not found or corrupted. You need to download it from official website.')
+            log.error('Dataset not found or corrupted. You need to download it from official website.')
             raise RuntimeError('Dataset not found or corrupted. You need to download it from official website.')
 
         if preprocess or not self.check_preprocess():
-            logger.info("Preprocessing of the UCF-Crime dataset, which will take a long time, but it will be done only once.")
+            log.info("Preprocessing of the UCF-Crime dataset, which will take a long time, but it will be done only once.")
 
         self.__labels = self.generate_labels()
 
-        logger.info('Number of %s videos: %d.' % (phase, len(self.__datasets)))
+        log.info('Number of %s videos: %d.' % (phase, len(self.__datasets)))
 
     def __len__(self):
         return len(self.__datasets)
@@ -79,7 +79,7 @@ class UcfCrimeDataset(Dataset):
                 os.mkdir(valid_dir)
 
         stop_time = timeit.default_timer()
-        logger.info('Preprocessing finished. Execution time: %d' % (stop_time - start_time))
+        log.info('Preprocessing finished. Execution time: %d' % (stop_time - start_time))
 
     def extract_videos(self, video_dir, video_name, file, save_dir):
         """
@@ -96,7 +96,7 @@ class UcfCrimeDataset(Dataset):
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        logger.debug('The %s \'s frame rate: %dfps, count: %d, width: %dpx, height: %dpx' % (video_path, frame_rate, frame_count, frame_width, frame_height))
+        log.debug('The %s \'s frame rate: %dfps, count: %d, width: %dpx, height: %dpx' % (video_path, frame_rate, frame_count, frame_width, frame_height))
 
     def generate_labels(self) -> list:
         labels = []

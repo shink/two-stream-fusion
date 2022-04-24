@@ -23,7 +23,7 @@ import torchvision.models.resnet as resnet
 from tensorboardX import SummaryWriter
 
 from conf import param
-from conf import logger
+from conf import log
 from utils import util
 from network import tsfusion
 
@@ -49,18 +49,18 @@ def train():
     else:
         device = torch.device('cpu')
 
-    logger.info('Training on %s.' % device)
+    log.info('Training on %s.' % device)
 
     model = tsfusion.TwoStreamFusion()
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
 
     if resume_epoch <= 0:
-        logger.info("Training %s from scratch." % model_name)
+        log.info("Training %s from scratch." % model_name)
     else:
         load_checkpoint(save_model_dir, resume_epoch, model, optimizer)
 
-    logger.info('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
+    log.info('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
     model.to(device)
     criterion.to(device)
 
@@ -126,7 +126,7 @@ def save_checkpoint(path_dir, epoch, model, optimizer):
     }
     path = __model_path(path_dir, epoch)
     torch.save(state, path)
-    logger.info("Save model at %s." % path)
+    log.info("Save model at %s." % path)
 
 
 def load_checkpoint(path_dir, epoch, model, optimizer):
@@ -134,7 +134,7 @@ def load_checkpoint(path_dir, epoch, model, optimizer):
     checkpoint = torch.load(path)
     model.load_state_dict(checkpoint['model'])
     optimizer.load_state_dict(checkpoint['optimizer'])
-    logger.info("Load para from: %s." % path)
+    log.info("Load para from: %s." % path)
 
 
 def __model_path(path_dir, epoch):
