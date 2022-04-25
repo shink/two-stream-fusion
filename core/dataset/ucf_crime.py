@@ -60,7 +60,7 @@ class UcfCrimeDataset(Dataset):
         if not os.path.exists(self.frame_dir):
             os.mkdir(self.frame_dir)
             os.mkdir(os.path.join(self.frame_dir, 'train'))
-            os.mkdir(os.path.join(self.frame_dir, 'test'))
+            os.mkdir(os.path.join(self.frame_dir, 'tests'))
             os.mkdir(os.path.join(self.frame_dir, 'valid'))
 
         # Split datasets
@@ -68,7 +68,7 @@ class UcfCrimeDataset(Dataset):
             file_path = os.path.join(self.__dataset_dir, file)
 
             train_dir = os.path.join(self.__frame_dir, 'train', file)
-            test_dir = os.path.join(self.__frame_dir, 'test', file)
+            test_dir = os.path.join(self.__frame_dir, 'tests', file)
             valid_dir = os.path.join(self.__frame_dir, 'valid', file)
 
             if not os.path.exists(train_dir):

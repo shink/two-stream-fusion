@@ -66,7 +66,7 @@ def train():
 
     print('Training model on %s dataset.' % dataset)
     # train_dataloader = DataLoader(VideoDataset(dataset=dataset, split='train', clip_len=16), batch_size=6, shuffle=True, num_workers=0)
-    # test_dataloader = DataLoader(VideoDataset(dataset=dataset, split='test', clip_len=16), batch_size=6, num_workers=0)
+    # test_dataloader = DataLoader(VideoDataset(dataset=dataset, split='tests', clip_len=16), batch_size=6, num_workers=0)
     # valid_dataloader = DataLoader(VideoDataset(dataset=dataset, split='val', clip_len=16), batch_size=6, num_workers=0)
 
     iteration = 0
@@ -84,7 +84,7 @@ def train():
         if epoch % save_epoch_interval == 0 and iteration > 0:
             save_checkpoint(save_model_dir, epoch, model, optimizer)
 
-        # test
+        # tests
         if epoch % test_interval == 0 and iteration > 0:
             model.eval()
             start_time = timeit.default_timer()
@@ -111,7 +111,7 @@ def train():
             writer.add_scalar('data/test_loss_epoch', epoch_loss, epoch)
             writer.add_scalar('data/test_acc_epoch', epoch_acc, epoch)
 
-            print("[test] Epoch: {}/{} Loss: {} Acc: {}".format(epoch + 1, nEpochs, epoch_loss, epoch_acc))
+            print("[tests] Epoch: {}/{} Loss: {} Acc: {}".format(epoch + 1, nEpochs, epoch_loss, epoch_acc))
             stop_time = timeit.default_timer()
             print("Execution time: " + str(stop_time - start_time) + "\n")
 
