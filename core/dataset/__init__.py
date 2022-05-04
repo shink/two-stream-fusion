@@ -7,3 +7,7 @@
 @date: 2022/3/10
 @description: 
 """
+
+from .ucf_101 import Ucf101Dataset
+
+__all__ = ['Ucf101Dataset']

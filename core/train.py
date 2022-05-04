@@ -10,21 +10,19 @@
 
 import os
 import timeit
-
+from datetime import datetime
 from tqdm import tqdm
 
 import cv2
 import torch
+import torchvision.transforms as transforms
 from torch import nn, optim
 from torch.utils.data import DataLoader
-
-import torchvision.models.resnet as resnet
-
 from tensorboardX import SummaryWriter
 
-from conf import param
-from conf import log
+from conf import log, log_dir, param
 from utils import util
+from dataset import *
 from network import tsfusion
 
 
@@ -34,7 +32,9 @@ def train():
 
     dataset = param.dataset
     dataset_dir = param.dataset_dir
+    dataset_preprocess_dir = param.dataset_preprocess_dir
     save_model_dir = param.save_model_dir
+    model_name = param.model_name
 
     epoch_num = param.epoch_num
     resume_epoch = param.resume_epoch
@@ -42,47 +42,106 @@ def train():
     test_interval = param.test_interval
     lr = param.lr
 
-    model_name = 'two-stream-fusion'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    if torch.cuda.is_available():
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
+    log.info("training on %s device" % device)
+    log.info("training model on %s dataset" % dataset)
 
-    log.info('Training on %s.' % device)
-
-    model = tsfusion.TwoStreamFusion()
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    model = tsfusion.TwoStreamFusion(class_num=101)
+    optimizer = optim.SGD(model.parameters(), lr=float(lr), momentum=0.9)
     criterion = nn.CrossEntropyLoss()
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)  # the scheduler divides the lr by 10 every 10 epochs
 
     if resume_epoch <= 0:
-        log.info("Training %s from scratch." % model_name)
+        log.info("training model (%s) from scratch" % model_name)
     else:
-        load_checkpoint(save_model_dir, resume_epoch, model, optimizer)
+        load_checkpoint(save_model_dir, model_name, resume_epoch, model, optimizer)
 
-    log.info('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
+    log.info("total params: %.2fM" % (sum(p.numel() for p in model.parameters()) / 1000000.0))
     model.to(device)
     criterion.to(device)
 
-    print('Training model on %s dataset.' % dataset)
-    # train_dataloader = DataLoader(VideoDataset(dataset=dataset, split='train', clip_len=16), batch_size=6, shuffle=True, num_workers=0)
-    # test_dataloader = DataLoader(VideoDataset(dataset=dataset, split='test', clip_len=16), batch_size=6, num_workers=0)
-    # valid_dataloader = DataLoader(VideoDataset(dataset=dataset, split='val', clip_len=16), batch_size=6, num_workers=0)
+    summary_log_dir = os.path.join(log_dir, datetime.now().strftime('%b%d_%H-%M-%S'))
+    writer = SummaryWriter(log_dir=summary_log_dir)
+
+    # define the transformation
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),
+        transforms.ToTensor()
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    train_dataloader = DataLoader(Ucf101Dataset(dataset_dir, dataset_preprocess_dir, phase='train', transform=transform, preprocess=True),
+                                  batch_size=6, shuffle=True, num_workers=0)
+
+    test_dataloader = DataLoader(Ucf101Dataset(dataset_dir, dataset_preprocess_dir, phase='test', transform=transform, preprocess=False),
+                                 batch_size=6, shuffle=True, num_workers=0)
+
+    valid_dataloader = DataLoader(Ucf101Dataset(dataset_dir, dataset_preprocess_dir, phase='valid', transform=transform, preprocess=False),
+                                  batch_size=6, shuffle=True, num_workers=0)
 
     iteration = 0
 
     for epoch in tqdm(range(resume_epoch, epoch_num)):
-        model.train()
+        # each epoch has a training step and a validation step
+        for phase in ['train', 'valid']:
+            start_time = timeit.default_timer()
 
-        for inputs, labels in tqdm(train_dataloader):
-            optimizer.zero_grad()
+            # reset the running loss and corrects
+            running_loss = 0.0
+            running_corrects = 0.0
 
-            loss.backward()
-            optimizer.step()
+            # set model to train() or eval() mode depending on whether it is trained or being validated
+            if phase == 'train':
+                # scheduler.step() is to be called once every epoch during training
+                scheduler.step()
+                model.train()
+                dataloader = train_dataloader.dataset
+            else:
+                model.eval()
+                dataloader = valid_dataloader.dataset
+
+            for inputs, labels in enumerate(dataloader):
+                # move inputs and labels to the device the training is taking place on
+                inputs = Variable(inputs, requires_grad=True).to(device)
+                labels = Variable(labels).to(device)
+                optimizer.zero_grad()
+
+                if phase == 'train':
+                    outputs = model(inputs)
+                else:
+                    with torch.no_grad():
+                        outputs = model(inputs)
+
+                probs = nn.Softmax(dim=1)(outputs)
+                preds = torch.max(probs, 1)[1]
+                loss = criterion(outputs, labels.long())
+
+                if phase == 'train':
+                    loss.backward()
+                    optimizer.step()
+
+                running_loss += loss.item() * inputs.size(0)
+                running_corrects += torch.sum(preds == labels.data)
+
+            epoch_loss = running_loss / trainval_sizes[phase]
+            epoch_acc = running_corrects.double() / trainval_sizes[phase]
+
+            if phase == 'train':
+                writer.add_scalar('data/train_loss_epoch', epoch_loss, epoch)
+                writer.add_scalar('data/train_acc_epoch', epoch_acc, epoch)
+            else:
+                writer.add_scalar('data/val_loss_epoch', epoch_loss, epoch)
+                writer.add_scalar('data/val_acc_epoch', epoch_acc, epoch)
+
+            stop_time = timeit.default_timer()
+            log.info("[{}] epoch: {}/{}, loss: {}, acc: {}, execution time: {}"
+                     .format(phase, epoch + 1, epoch_num, epoch_loss, epoch_acc, stop_time - start_time))
 
         # save checkpoint
         if epoch % save_epoch_interval == 0 and iteration > 0:
-            save_checkpoint(save_model_dir, epoch, model, optimizer)
+            save_checkpoint(save_model_dir, model_name, epoch, model, optimizer)
 
         # test
         if epoch % test_interval == 0 and iteration > 0:
@@ -92,7 +151,7 @@ def train():
             running_loss = 0.0
             running_corrects = 0.0
 
-            for inputs, labels in tqdm(test_dataloader):
+            for inputs, labels in enumerate(test_dataloader):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
@@ -111,34 +170,36 @@ def train():
             writer.add_scalar('data/test_loss_epoch', epoch_loss, epoch)
             writer.add_scalar('data/test_acc_epoch', epoch_acc, epoch)
 
-            print("[test] Epoch: {}/{} Loss: {} Acc: {}".format(epoch + 1, nEpochs, epoch_loss, epoch_acc))
             stop_time = timeit.default_timer()
-            print("Execution time: " + str(stop_time - start_time) + "\n")
+            log.info("[test] epoch: {}/{}, loss: {}, acc: {}, execution time: {}"
+                     .format(epoch + 1, epoch_num, epoch_loss, epoch_acc, stop_time - start_time))
 
         iteration += 1
 
+    writer.close()
 
-def save_checkpoint(path_dir, epoch, model, optimizer):
+
+def save_checkpoint(path_dir: str, model_name: str, epoch: int, model, optimizer):
     state = {
         'epoch': epoch,
         'model': model.state_dict(),
         'optimizer': optimizer.state_dict()
     }
-    path = __model_path(path_dir, epoch)
+    path = __model_path(path_dir, model_name, epoch)
     torch.save(state, path)
-    log.info("Save model at %s." % path)
+    log.info("save model at %s" % path)
 
 
-def load_checkpoint(path_dir, epoch, model, optimizer):
-    path = __model_path(path_dir, epoch)
+def load_checkpoint(path_dir: str, model_name: str, epoch: int, model, optimizer):
+    path = __model_path(path_dir, model_name, epoch)
+    log.info("loading model from: %s" % path)
     checkpoint = torch.load(path)
     model.load_state_dict(checkpoint['model'])
     optimizer.load_state_dict(checkpoint['optimizer'])
-    log.info("Load para from: %s." % path)
 
 
-def __model_path(path_dir, epoch):
-    return os.path.join(path_dir, 'model-epoch-%d.pth' % epoch)
+def __model_path(path_dir: str, model_name: str, epoch: int) -> str:
+    return os.path.join(path_dir, "%s-epoch-%d.pth" % (model_name, epoch))
 
 
 if __name__ == '__main__':
