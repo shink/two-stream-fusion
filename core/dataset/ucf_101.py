@@ -76,16 +76,8 @@ class Ucf101Dataset(Dataset):
         """
 
         label, processed_video_path = self.dataset_list[index]
-
-        # RGB
-        processed_rgb_path = os.path.join(processed_video_path, 'rgb')
-        rgb_frame_list = video_util.extract_frame(processed_rgb_path)
-
-        # optical flow
-        processed_optical_path = os.path.join(processed_video_path, 'optical')
-        optical_frame_list = video_util.extract_frame(processed_optical_path)
-
-        return label
+        rgb_tensor, optical_tensor = video_util.extract_frame_to_tensor(processed_video_path)
+        return rgb_tensor, optical_tensor, label
 
     def download(self):
         """

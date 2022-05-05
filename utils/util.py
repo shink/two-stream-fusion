@@ -14,7 +14,7 @@ import yaml
 import csv
 
 
-def get_root_path() -> os.path:
+def get_root_path() -> str:
     return os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 

@@ -12,8 +12,62 @@ import os
 import cv2
 import random
 import numpy as np
+import torch
+from PIL import Image
 
 from conf import log
+
+
+def extract_frame_to_tensor(processed_path: str,
+                            frame_suffix: str = 'jpg',
+                            rgb_extract_count: int = 1,
+                            rgb_extract_interval: int = 5,
+                            optical_extract_count: int = 2,
+                            optical_extract_interval: int = 5,
+                            transform=None
+                            ) -> (torch.Tensor, torch.Tensor):
+    """
+    """
+
+    # RGB
+    processed_rgb_path = os.path.join(processed_path, 'rgb')
+    rgb_frame_path_list = extract_frame(processed_rgb_path, frame_suffix,
+                                        extract_count=rgb_extract_count,
+                                        extract_interval=rgb_extract_interval)
+
+    # optical flow
+    processed_optical_path = os.path.join(processed_path, 'optical')
+    optical_frame_path_list = extract_frame(processed_optical_path, frame_suffix,
+                                            extract_count=optical_extract_count,
+                                            extract_interval=optical_extract_interval)
+
+    return collect_frame_to_tensor(rgb_frame_path_list, transform), collect_frame_to_tensor(optical_frame_path_list, transform)
+
+
+def extract_frame(frame_dir: str,
+                  frame_suffix: str,
+                  extract_count: int,
+                  extract_interval: int
+                  ) -> list:
+    """
+    """
+
+    rgb_path_list = []
+    cnt = len(os.listdir(frame_dir))
+    for i in range(0, cnt, extract_interval):
+        frame_cnt_list = random.sample(range(i, i + extract_interval), extract_count)
+        rgb_path_list += [os.path.join(frame_dir, frame_name(frame_cnt, frame_suffix)) for frame_cnt in frame_cnt_list]
+    return rgb_path_list
+
+
+def collect_frame_to_tensor(frame_path_list: list, transform=None) -> torch.Tensor:
+    tensor_list = []
+    for frame_path in sorted(frame_path_list):
+        frame = Image.open(frame_path)
+        if transform is not None:
+            frame = transform(frame)
+        tensor_list.append(frame)
+    return torch.stack(tensor_list, dim=0)
 
 
 def extract_videos(processed_category_path, video_path_list: list) -> None:
@@ -84,29 +138,6 @@ def extract_video(processed_root_path: str,
 
     # release the VideoCapture once it is no longer needed
     cap.release()
-
-
-def extract_frame(frame_dir: str,
-                  frame_suffix: str = 'jpg',
-                  extract_count: int = 2,
-                  extract_interval: int = 5) -> list:
-    """
-    """
-
-    rgb_path_list = []
-    cnt = len(os.listdir(frame_dir))
-    for i in range(0, cnt, extract_interval):
-        frame_cnt_list = random.sample(range(i, i + extract_interval), extract_count)
-        rgb_path_list += [os.path.join(frame_dir, frame_name(frame_cnt, frame_suffix)) for frame_cnt in frame_cnt_list]
-    return rgb_path_list
-
-
-def collect_frame_to_tensor(frame_path_list: list):
-    frame_cnt = len(frame_path_list)
-    buffer = np.empty((frame_cnt, self.resize_height, self.resize_width, 3), np.dtype('float32'))
-    for i, frame_name in enumerate(frames):
-        frame = np.array(cv2.imread(frame_name)).astype(np.float64)
-        buffer[i] = frame
 
 
 def filename(file_path: str) -> str:

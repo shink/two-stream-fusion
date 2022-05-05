@@ -11,6 +11,6 @@ model_name: "ucf-101-two-stream-fusion"
 param:
   epoch_num: 2
   resume_epoch: 0     # resume from an epoch
-  snapshot: 2         # store a model every snapshot epochs
+  snapshot: 1         # store a model every snapshot epochs
   test_interval: 1    # test every interval epochs
   lr: 1e-5            # learning rate
