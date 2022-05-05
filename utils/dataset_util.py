@@ -18,8 +18,8 @@ def save_divided_dataset_list(save_dir: str, dataset_list: list) -> None:
     train_dataset_list, test_dataset_list, valid_dataset_list = [], [], []
 
     for class_list in dataset_list:
-        class_train_and_valid, class_test_dataset_list = train_test_split(class_list, test_size=0.1, random_state=42)
-        class_train_dataset_list, class_valid_dataset_list = train_test_split(class_train_and_valid, test_size=0.1, random_state=42)
+        class_train_and_valid, class_test_dataset_list = train_test_split(class_list, test_size=0.2, random_state=42)
+        class_train_dataset_list, class_valid_dataset_list = train_test_split(class_train_and_valid, test_size=0.5, random_state=42)
         train_dataset_list += class_train_dataset_list
         test_dataset_list += class_test_dataset_list
         valid_dataset_list += class_valid_dataset_list

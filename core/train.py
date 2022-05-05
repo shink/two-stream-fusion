@@ -21,8 +21,8 @@ from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 
 from conf import log, log_dir, param
-from dataset import *
-from network import tsfusion
+from core.dataset import *
+from core.network import tsfusion
 
 
 def train():
@@ -41,9 +41,13 @@ def train():
     test_interval = param.test_interval
     lr = param.lr
 
+    # create directory to save model
+    if not os.path.exists(save_model_dir):
+        os.makedirs(save_model_dir)
+
     model = tsfusion.TwoStreamFusion(class_num=101)
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     if multi_gpu_available():
         log.info("training on %d gpus" % torch.cuda.device_count())
@@ -52,8 +56,7 @@ def train():
     log.info("training on %s device" % device)
     log.info("training model on %s dataset" % dataset)
 
-    model_parameters = model.module.parameters() if multi_gpu_available() else model.parameters()
-    optimizer = optim.SGD(model_parameters, lr=float(lr), momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=float(lr), momentum=0.9)
     criterion = nn.CrossEntropyLoss()
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)  # the scheduler divides the lr by 10 every 10 epochs
 
@@ -62,7 +65,7 @@ def train():
     else:
         load_checkpoint(save_model_dir, model_name, resume_epoch, model, optimizer)
 
-    log.info("total params: %.2fM" % (sum(p.numel() for p in model_parameters) / 1000000.0))
+    log.info("total params: %.2fM" % (sum(p.numel() for p in model.parameters()) / 1000000.0))
     model.to(device)
     criterion.to(device)
 
@@ -87,13 +90,13 @@ def train():
                                   batch_size=6, shuffle=True, num_workers=0)
 
     iteration = 0
-    train_valid_loaders = {'train': train_dataloader, 'valid': valid_dataloader}
-    train_valid_sizes = {x: len(train_valid_loaders[x]) for x in ['train', 'valid']}
-    test_size = len(test_dataloader)
+    train_dataset_size = len(train_dataloader)
+    test_dataset_size = len(test_dataloader)
+    valid_dataset_size = len(valid_dataloader)
 
-    log.debug("train size: %d, test size: %d, valid size: %d" % (train_valid_sizes['train'], test_size, train_valid_sizes['valid']))
+    log.info("train size: %d, test size: %d, valid size: %d" % (train_dataset_size, test_dataset_size, valid_dataset_size))
 
-    for epoch in tqdm(range(resume_epoch, epoch_num), desc='epoch', leave=False):
+    for epoch in tqdm(range(resume_epoch, epoch_num), desc='epoch', leave=False, ncols=50):
         # each epoch has a training step and a validation step
         for phase in ['train', 'valid']:
             start_time = timeit.default_timer()
@@ -107,10 +110,12 @@ def train():
                 # scheduler.step() is to be called once every epoch during training
                 scheduler.step()
                 model.train()
+                dataloader = train_dataloader
             else:
                 model.eval()
+                dataloader = valid_dataloader
 
-            for index, data in tqdm(enumerate(train_valid_loaders[phase]), desc=phase, leave=True):
+            for index, data in tqdm(enumerate(dataloader), desc=phase, leave=True, ncols=50):
                 # move inputs and labels to the device the training is taking place on
                 rgb_frames, optical_frames, labels = data
 
@@ -140,8 +145,9 @@ def train():
                 log.debug("[{}] epoch: {}/{}, lr: {}, loss: {}"
                           .format(phase, epoch + 1, epoch_num, optimizer.state_dict()['param_groups'][0]['lr'], running_loss))
 
-            epoch_loss = running_loss / train_valid_sizes[phase]
-            epoch_acc = running_corrects / train_valid_sizes[phase]
+            dataset_size = train_dataset_size if phase == 'train' else valid_dataset_size
+            epoch_loss = running_loss / dataset_size
+            epoch_acc = running_corrects / dataset_size
 
             if phase == 'train':
                 writer.add_scalar('data/train_loss_epoch', epoch_loss, epoch)
@@ -166,7 +172,7 @@ def train():
             running_loss = 0.0
             running_corrects = 0.0
 
-            for index, data in tqdm(enumerate(test_dataloader), desc='test', leave=True):
+            for index, data in tqdm(enumerate(test_dataloader), desc='test', leave=True, ncols=50):
                 rgb_frames, optical_frames, labels = data
 
                 rgb_frames = rgb_frames.to(device)
@@ -175,15 +181,17 @@ def train():
 
                 with torch.no_grad():
                     outputs = model(rgb_frames, optical_frames)
+
+                loss = criterion(outputs, labels.long())
+
                 probs = nn.Softmax(dim=1)(outputs)
                 preds = torch.max(probs, 1)[1]
-                loss = criterion(outputs, labels.long())
 
                 running_loss += loss.item() * rgb_frames.size(0)
                 running_corrects += torch.sum(preds == labels.data)
 
-            epoch_loss = running_loss / test_size
-            epoch_acc = running_corrects.double() / test_size
+            epoch_loss = running_loss / test_dataset_size
+            epoch_acc = running_corrects / test_dataset_size
 
             writer.add_scalar('data/test_loss_epoch', epoch_loss, epoch)
             writer.add_scalar('data/test_acc_epoch', epoch_acc, epoch)

@@ -99,7 +99,7 @@ class Ucf101Dataset(Dataset):
             os.mkdir(self.processed_path)
 
         total_dataset_list = []
-        for category in tqdm(os.listdir(self.dataset_path), desc='Preprocessing', leave=True):
+        for category in tqdm(os.listdir(self.dataset_path), desc='Preprocessing', leave=False, ncols=50):
             # category directory
             category_path = os.path.join(self.dataset_path, category)
 

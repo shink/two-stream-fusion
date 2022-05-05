@@ -27,7 +27,3 @@ resume_epoch = param['param']['resume_epoch']
 snapshot = param['param']['snapshot']
 test_interval = param['param']['test_interval']
 lr = param['param']['lr']
-
-# create directory to save model
-if not os.path.exists(save_model_dir):
-    os.makedirs(save_model_dir)
