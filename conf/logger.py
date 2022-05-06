@@ -40,16 +40,16 @@ class Logger(logging.Logger):
         self.addHandler(stream_handler)
 
 
-log_file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'log')
+log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'log')
 log_file_name = 'two-stream-fusion.log'
-log_file_path = os.path.join(log_file_dir, log_file_name)
+log_file_path = os.path.join(log_dir, log_file_name)
 
-if not os.path.exists(log_file_dir):
-    os.mkdir(log_file_dir)
+if not os.path.exists(log_dir):
+    os.mkdir(log_dir)
 
-config_file_dir = os.path.dirname(os.path.abspath(__file__))
+config_dir = os.path.dirname(os.path.abspath(__file__))
 config_file_name = "logger.yml"
-config_file_path = os.path.join(config_file_dir, config_file_name)
+config_file_path = os.path.join(config_dir, config_file_name)
 
 config = read_yaml(config_file_path)
 logger_config = config["logger"]

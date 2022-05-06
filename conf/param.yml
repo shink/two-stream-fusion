@@ -1,0 +1,16 @@
+# author: shenke
+# date: 2022/4/25
+
+# the datasets name, it can be 'ucf-101', 'ucf-crime', 'xd-violence'
+dataset: "ucf-101"
+dataset_dir: "/home/shenke/Develop/GitHub Repository/two-stream-fusion/datasets/ucf-101/UCF101"
+dataset_preprocess_dir: "/home/shenke/Develop/GitHub Repository/two-stream-fusion/datasets/ucf-101/frames"
+save_model_dir: "/home/shenke/Develop/GitHub Repository/two-stream-fusion/models/ucf-101"
+model_name: "ucf-101-two-stream-fusion"
+
+param:
+  epoch_num: 2
+  resume_epoch: 0     # resume from an epoch
+  snapshot: 1         # store a model every snapshot epochs
+  test_interval: 1    # test every interval epochs
+  lr: 1e-5            # learning rate

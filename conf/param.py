@@ -9,15 +9,21 @@
 """
 
 import os
+from utils.util import read_yaml
 
-root_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+param_file_dir = os.path.dirname(os.path.abspath(__file__))
+param_file_name = "param.yml"
+param_file_path = os.path.join(param_file_dir, param_file_name)
 
-dataset = 'ucf-crime'  # the dataset name, it can be 'ucf-101', 'ucf-crime', 'xd-violence'
-dataset_dir = os.path.join(root_dir, 'dataset')  # look for datasets from the 'dataset' directory by default
-save_model_dir = os.path.join(root_dir, 'model')  # models stored in the 'model' directory by default
+param = read_yaml(param_file_path)
+dataset = param['dataset']
+dataset_dir = param['dataset_dir']
+dataset_preprocess_dir = param['dataset_preprocess_dir']
+save_model_dir = param['save_model_dir']
+model_name = param['model_name']
 
-epoch_num = 2
-resume_epoch = 0  # resume from an epoch
-snapshot = 2  # store a model every snapshot epochs
-test_interval = 1
-lr = 1e-5  # learning rate
+epoch_num = param['param']['epoch_num']
+resume_epoch = param['param']['resume_epoch']
+snapshot = param['param']['snapshot']
+test_interval = param['param']['test_interval']
+lr = param['param']['lr']

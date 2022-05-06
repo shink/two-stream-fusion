@@ -17,22 +17,24 @@ class TwoStreamFusion(nn.Module):
     The two-stream network
     """
 
-    __class_num: int
-    __spatial_stream: nn.Module
-    __temporal_stream: nn.Module
-
     def __init__(self, class_num):
         super(TwoStreamFusion, self).__init__()
 
-        self.__class_num = class_num
-
-        self.__spatial_stream = SpatialStream(self.__class_num)
-        self.__temporal_stream = TemporalStream(self.__class_num)
+        self.spatial_net = SpatialStream()
+        self.temporal_net = TemporalStream()
+        self.conv = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3)
+        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        self.fc = nn.Linear(in_features=2048, out_features=class_num)
 
     def forward(self, x_spatial, x_temporal):
-        spatial_out = self.__spatial_stream(x_spatial)
-        temporal_out = self.__temporal_stream(x_temporal)
-        return spatial_out + temporal_out
+        spatial_out = self.spatial_net(x_spatial)
+        temporal_out = self.temporal_net(x_temporal)
+
+        # convolutional fusion
+        x = self.conv(spatial_out + temporal_out)
+        x = self.avgpool(x)
+        x = self.fc(x)
+        return x
 
 
 class SpatialStream(nn.Module):
@@ -40,11 +42,12 @@ class SpatialStream(nn.Module):
     The spatial stream network
     """
 
-    def __init__(self, class_num):
+    def __init__(self, pretrained=True):
         super(SpatialStream, self).__init__()
 
-        self.spatial_stream = models.resnet34(pretrained=True)
-        self.spatial_stream.fc = nn.Linear(in_features=2048, out_features=class_num)
+        self.spatial_stream = models.resnet34(pretrained=pretrained)
+        # remove the avgpool layer and fc layer
+        self.spatial_stream = nn.Sequential(*list(self.spatial_stream.children())[:-2])
 
     def forward(self, x):
         spatial_out = self.spatial_stream(x)
@@ -56,11 +59,12 @@ class TemporalStream(nn.Module):
     The temporal stream network
     """
 
-    def __init__(self, class_num):
+    def __init__(self):
         super(TemporalStream, self).__init__()
 
-        self.temporal_stream = models.resnet34(pretrained=False)
-        self.temporal_stream.fc = nn.Linear(in_features=2048, out_features=class_num)
+        self.temporal_stream = models.resnet34()
+        # remove the avgpool layer and fc layer
+        self.temporal_stream = nn.Sequential(*list(self.temporal_stream.children())[:-2])
 
     def forward(self, x):
         temporal_out = self.temporal_stream(x)

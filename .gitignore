@@ -1,11 +1,15 @@
 .idea
 __pycache__
 .pytest_cache
+*_dataset.csv
+
+### logs ###
 log
 *.log
 
-### datasets ###
-dataset/ucf-101/UCF101
+### videos ###
+*.avi
+*.mp4
 
-### generated frames ###
-dataset/ucf-101/frames
+### images ###
+*.jpg

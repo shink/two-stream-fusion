@@ -9,9 +9,10 @@
 """
 
 import os
+from unittest import TestCase
 from conf.logger import log_file_path
 
 
-class TestLogger:
+class TestLogger(TestCase):
     def test_logger(self):
         assert os.path.exists(log_file_path)

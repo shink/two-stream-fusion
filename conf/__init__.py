@@ -8,7 +8,7 @@
 @description: 
 """
 
-from .logger import Logger, log, log_file_path
+from .logger import Logger, log, log_dir, log_file_path
 from . import param
 
-__all__ = ['Logger', 'log', 'log_file_path', 'param']
+__all__ = ['Logger', 'log', 'log_dir', 'log_file_path', 'param']
