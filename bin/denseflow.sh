@@ -12,9 +12,9 @@ result_path=$3
 # number of GPUs
 num_gpu=$4
 
-[ ! -f "$dataset_path" ] && echo "$dataset_path directory not found" && exit
+[ ! -d "$dataset_path" ] && echo "$dataset_path directory not found" && exit
 [ ! -f "$video_list_path" ] && echo "$video_list_path file not found" && exit
-[ ! -f "$result_path" ] && echo "$result_path directory not found" && exit
+[ ! -d "$result_path" ] && mkdir -p "$result_path"
 
 sed -i "s/\$DATASET_PATH/\/data/g" "$video_list_path"
 
